@@ -1,41 +1,75 @@
 #include <windows.h>
+#include <stdint.h>
+
+typedef uint8_t uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
+
+typedef int8_t int8;
+typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
 
 // TODO: global for now
 static bool running;
 
 static BITMAPINFO BitmapInfo;
 static void *BitmapMemory;
-static HBITMAP BitmapHandle;
-static HDC BitmapDeviceContext;
+static int BitmapWidth;
+static int BitmapHeight;
+static int BytesPerPixel = 4;
+
+void RenderWeirdGradiant(int XOffset, int YOffset)
+{
+	int width = BitmapWidth;
+	int height = BitmapHeight;
+
+	int pitch = width*BytesPerPixel;
+	uint8 *row = (uint8 *)BitmapMemory;
+
+	for(int y = 0; y < BitmapHeight; ++y)
+	{
+		uint32 *pixel = (uint32 *)row;
+		for(int x = 0; x < BitmapWidth; ++x)
+		{
+			uint8 blue = (x + XOffset);
+			uint8 green = (y + YOffset);
+			*pixel++ = (green << 8) | blue;
+		}
+		row += pitch;
+	}
+}
 
 void Win32ResizeDIBSection(int width, int height)
 {
 	// TODO: Bulletproof this
 	// May be don't free first, free after, then free first if that fails
 
-	if (BitmapHandle)
+	if (BitmapMemory)
 	{
-		DeleteObject(BitmapHandle);
+		VirtualFree(BitmapMemory, 0, MEM_RELEASE);
 	}
-	if (!BitmapDeviceContext)
-	{
-		// TODO: Should we re-create under special circumstances
-		BitmapDeviceContext = CreateCompatibleDC(0);
-	}
+	
+	BitmapWidth = width;
+	BitmapHeight = height;
 
 	BitmapInfo.bmiHeader.biSize = sizeof(BitmapInfo.bmiHeader);
-	BitmapInfo.bmiHeader.biWidth = width;
-	BitmapInfo.bmiHeader.biHeight = height;
+	BitmapInfo.bmiHeader.biWidth = BitmapWidth;
+	BitmapInfo.bmiHeader.biHeight = -BitmapHeight;
 	BitmapInfo.bmiHeader.biPlanes = 1;
 	BitmapInfo.bmiHeader.biBitCount = 32;
 	BitmapInfo.bmiHeader.biCompression = BI_RGB;
 
-	BitmapHandle = CreateDIBSection(BitmapDeviceContext, &BitmapInfo, DIB_RGB_COLORS, &BitmapMemory, 0, 0);
+	int BitmapMemorySize = (width*height)*BytesPerPixel;
+	BitmapMemory = VirtualAlloc(0, BitmapMemorySize, MEM_COMMIT, PAGE_READWRITE);
 }
 
-void Win32UpdateWindow(HDC hdc, int x, int y, int width, int height)
+void Win32UpdateWindow(HDC hdc, RECT *ClientRect, int x, int y, int width, int height)
 {
-	StretchDIBits(hdc, x, y, width, height, x, y, width, height, BitmapMemory, &BitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+	int WindowWidth = ClientRect->right - ClientRect->left;
+	int WindowHeight = ClientRect->bottom - ClientRect->top;
+	StretchDIBits(hdc, 0, 0, BitmapWidth, BitmapHeight, 0, 0, WindowWidth, WindowHeight, BitmapMemory, &BitmapInfo, DIB_RGB_COLORS, SRCCOPY);
 }
 
 LRESULT CALLBACK Win32MainWindowCallback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -81,7 +115,11 @@ LRESULT CALLBACK Win32MainWindowCallback(HWND hwnd, UINT uMsg, WPARAM wParam, LP
 			int y = paint.rcPaint.top;
 			int height = paint.rcPaint.bottom - paint.rcPaint.top;
 			int width = paint.rcPaint.right - paint.rcPaint.left;
-			Win32UpdateWindow(DeviceContext, x, y, width, height);
+
+			RECT ClientRect;
+			GetClientRect(hwnd, &ClientRect);
+			
+			Win32UpdateWindow(DeviceContext, &ClientRect, x, y, width, height);
 			EndPaint(hwnd, &paint);
 			break;
 		}
@@ -112,20 +150,33 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 		if(WindowHandle)
 		{
+			int XOffset = 0;
+			int YOffset = 0;
 			running = true;
 			while(running)
 			{
 				MSG message;
-				bool MessageResult = GetMessageA(&message, 0, 0, 0);
-				if (MessageResult > 0)
+				while(PeekMessage(&message, 0, 0, 0, PM_REMOVE))
 				{
+					if(message.message == WM_QUIT)
+					{
+						running = false;
+					}
 					TranslateMessage(&message);
 					DispatchMessageA(&message);
 				}
-				else
-				{
-					break;
-				}
+				RenderWeirdGradiant(XOffset, YOffset);
+
+				HDC hdc = GetDC(WindowHandle);
+				RECT ClientRect;
+				GetClientRect(WindowHandle, &ClientRect);
+				int WindowWidth = ClientRect.right - ClientRect.left;
+				int WindowHeight = ClientRect.bottom - ClientRect.top;
+				Win32UpdateWindow(hdc, &ClientRect, 0, 0, WindowWidth, WindowHeight);
+				ReleaseDC(WindowHandle, hdc);
+
+				++XOffset;
+				++YOffset;
 			}
 		}
 		else
