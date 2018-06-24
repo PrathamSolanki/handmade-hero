@@ -20,7 +20,7 @@ static int BitmapWidth;
 static int BitmapHeight;
 static int BytesPerPixel = 4;
 
-void RenderWeirdGradiant(int XOffset, int YOffset)
+void RenderWeirdGradiant(int BlueOffset, int GreenOffset)
 {
 	int width = BitmapWidth;
 	int height = BitmapHeight;
@@ -33,8 +33,8 @@ void RenderWeirdGradiant(int XOffset, int YOffset)
 		uint32 *pixel = (uint32 *)row;
 		for(int x = 0; x < BitmapWidth; ++x)
 		{
-			uint8 blue = (x + XOffset);
-			uint8 green = (y + YOffset);
+			uint8 blue = (x + BlueOffset);
+			uint8 green = (y + GreenOffset);
 			*pixel++ = (green << 8) | blue;
 		}
 		row += pitch;
@@ -150,8 +150,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 		if(WindowHandle)
 		{
-			int XOffset = 0;
-			int YOffset = 0;
+			int BlueOffset = 0;
+			int GreenOffset = 0;
 			running = true;
 			while(running)
 			{
@@ -165,7 +165,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 					TranslateMessage(&message);
 					DispatchMessageA(&message);
 				}
-				RenderWeirdGradiant(XOffset, YOffset);
+				RenderWeirdGradiant(BlueOffset, GreenOffset);
 
 				HDC hdc = GetDC(WindowHandle);
 				RECT ClientRect;
@@ -175,8 +175,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 				Win32UpdateWindow(hdc, &ClientRect, 0, 0, WindowWidth, WindowHeight);
 				ReleaseDC(WindowHandle, hdc);
 
-				++XOffset;
-				++YOffset;
+				++BlueOffset;
+				++GreenOffset;
 			}
 		}
 		else
