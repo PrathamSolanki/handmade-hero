@@ -295,7 +295,12 @@ void Win32DisplayBuffer(HDC hdc, int WindowWidth, int WindowHeight, win32_offscr
 	StretchDIBits(hdc, 0, 0, WindowWidth, WindowHeight, 0, 0, buffer->width, buffer->height, buffer->memory, &buffer->info, DIB_RGB_COLORS, SRCCOPY);
 }
 
+//NOTE: Sound Test
 static short wheelDelta;
+
+//NOTE: Graphics Test
+static int BlueOffset = 0;
+static int GreenOffset = 0;
 
 LRESULT CALLBACK Win32MainWindowCallback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -358,21 +363,30 @@ LRESULT CALLBACK Win32MainWindowCallback(HWND hwnd, UINT uMsg, WPARAM wParam, LP
 		bool WasDown = (lParam & (1 << 30)) != 0;
 		bool IsDown = (lParam & (1 << 31)) == 0;
 
+		if (VKCode == 'W')
+		{
+			OutputDebugStringA("W");
+			GreenOffset += 10;
+		}
+		else if (VKCode == 'S')
+		{
+			OutputDebugStringA("S");
+			GreenOffset -= 10;
+		}
+		else if (VKCode == 'A')
+		{
+			OutputDebugStringA("A");
+			BlueOffset -= 10;
+		}
+		else if (VKCode == 'D')
+		{
+			OutputDebugStringA("D");
+			BlueOffset += 10;
+		}
+
 		if (WasDown != IsDown)
 		{
-			if (VKCode == 'W')
-			{
-			}
-			else if (VKCode == 'S')
-			{
-			}
-			else if (VKCode == 'A')
-			{
-			}
-			else if (VKCode == 'D')
-			{
-			}
-			else if (VKCode == 'Q')
+			if (VKCode == 'Q')
 			{
 			}
 			else if (VKCode == 'E')
@@ -446,10 +460,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		if (WindowHandle)
 		{
 			HDC hdc = GetDC(WindowHandle);
-
-			//NOTE: Graphics Test
-			int BlueOffset = 0;
-			int GreenOffset = 0;
 
 			//NOTE: Sound test
 			SoundOutput.SamplesPerSecond = 48000;
@@ -557,7 +567,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 				win32_window_dimension dimension = Win32GetWindowDimension(WindowHandle);
 				Win32DisplayBuffer(hdc, dimension.width, dimension.height, &GlobalBackBuffer);
 
-				++BlueOffset;
+				//++BlueOffset;
 			}
 		}
 		else
