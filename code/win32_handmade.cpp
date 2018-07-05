@@ -49,6 +49,8 @@ struct win32_sound_output
 	int LatencySampleCount;
 };
 
+static win32_sound_output SoundOutput;
+
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
 typedef X_INPUT_GET_STATE(x_input_get_state);
 X_INPUT_GET_STATE(XInputGetStateStub)
@@ -293,6 +295,8 @@ void Win32DisplayBuffer(HDC hdc, int WindowWidth, int WindowHeight, win32_offscr
 	StretchDIBits(hdc, 0, 0, WindowWidth, WindowHeight, 0, 0, buffer->width, buffer->height, buffer->memory, &buffer->info, DIB_RGB_COLORS, SRCCOPY);
 }
 
+static short wheelDelta;
+
 LRESULT CALLBACK Win32MainWindowCallback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	LRESULT result = 0;
@@ -336,6 +340,13 @@ LRESULT CALLBACK Win32MainWindowCallback(HWND hwnd, UINT uMsg, WPARAM wParam, LP
 		Win32DisplayBuffer(DeviceContext, dimension.width, dimension.height, &GlobalBackBuffer);
 		EndPaint(hwnd, &paint);
 		break;
+	}
+
+	case WM_MOUSEWHEEL:
+	{
+		wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+		SoundOutput.ToneHz += (int)(wheelDelta);
+		SoundOutput.WavePeriod = SoundOutput.SamplesPerSecond / SoundOutput.ToneHz;
 	}
 
 	case WM_SYSKEYDOWN:
@@ -441,8 +452,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 			int GreenOffset = 0;
 
 			//NOTE: Sound test
-			win32_sound_output SoundOutput = {};
-
 			SoundOutput.SamplesPerSecond = 48000;
 			SoundOutput.ToneHz = 256;
 			SoundOutput.ToneVolume = 1000;
