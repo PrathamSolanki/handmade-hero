@@ -3,6 +3,10 @@
 #include <Xinput.h>
 #include <dsound.h>
 #include <math.h>
+#include <stdio.h>
+#include <intrin.h>
+
+#pragma intrinsic(__rdtsc)
 
 #define Pi32 3.14159265359f
 
@@ -376,12 +380,12 @@ LRESULT CALLBACK Win32MainWindowCallback(HWND hwnd, UINT uMsg, WPARAM wParam, LP
 		else if (VKCode == 'A')
 		{
 			OutputDebugStringA("A");
-			BlueOffset -= 10;
+			BlueOffset += 10;
 		}
 		else if (VKCode == 'D')
 		{
 			OutputDebugStringA("D");
-			BlueOffset += 10;
+			BlueOffset -= 10;
 		}
 
 		if (WasDown != IsDown)
@@ -442,6 +446,10 @@ LRESULT CALLBACK Win32MainWindowCallback(HWND hwnd, UINT uMsg, WPARAM wParam, LP
 
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+	LARGE_INTEGER PerfCounterFrequencyResult;
+	QueryPerformanceFrequency(&PerfCounterFrequencyResult);
+	int PerfCounterFrequency = PerfCounterFrequencyResult.QuadPart;
+
 	Win32LoadXInput();
 
 	WNDCLASSA WindowClass = {};
@@ -478,6 +486,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 			GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 
 			GlobalRunning = true;
+
+			LARGE_INTEGER LastCounter;
+			QueryPerformanceCounter(&LastCounter);
+			int64 LastCycleCount = __rdtsc();
 
 			while (GlobalRunning)
 			{
@@ -568,6 +580,24 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 				Win32DisplayBuffer(hdc, dimension.width, dimension.height, &GlobalBackBuffer);
 
 				//++BlueOffset;
+
+				int64 endCycleCount = __rdtsc();
+				LARGE_INTEGER EndCounter;
+				QueryPerformanceCounter(&EndCounter);
+
+				//TODO: display the value here
+				int64 CyclesElapsed = endCycleCount - LastCycleCount;
+				int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
+				int32 MSPerFrame = (int32)(((1000 * CounterElapsed) / PerfCounterFrequency));
+				int32 FPS = PerfCounterFrequency / CounterElapsed;
+				int32 MCPF = (int32)(CyclesElapsed / (1000 * 1000));
+
+				char Buffer[256];
+				sprintf(Buffer, "%dms/f, %df/s, %dMc/f\n", MSPerFrame, FPS, MCPF);
+				OutputDebugStringA(Buffer);
+
+				LastCounter = EndCounter;
+				LastCycleCount = endCycleCount;
 			}
 		}
 		else
